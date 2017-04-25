@@ -11,7 +11,7 @@ script: true
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
-    docker build --build-arg BuildNumber="$TRAVIS_BUILD_NUMBER" --build-arg Commit="$TRAVIS_COMMIT" -t sesamcommunity/azure-storage .;
+    docker build -t sesamcommunity/azure-storage .;
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
     docker push sesamcommunity/azure-storage:latest;
     fi
