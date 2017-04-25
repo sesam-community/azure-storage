@@ -10,8 +10,4 @@ services:
 script: true
 
 after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
-    docker build -t sesamcommunity/azure-storage .;
-    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push sesamcommunity/azure-storage:latest;
-    fi
+  - bash <(curl -s https://raw.githubusercontent.com/sesam-community/guidelines/master/after_success.sh)
