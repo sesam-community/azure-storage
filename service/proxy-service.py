@@ -2,7 +2,7 @@ from flask import Flask, request, Response, abort, send_file
 from functools import wraps
 from azure.storage.file import FileService
 from azure.storage.blob import BlockBlobService
-import logging
+import logger as logging
 import os
 import io
 
@@ -64,26 +64,26 @@ def get_blob(container_name, blob_name):
         return abort(500, e)
 
 if __name__ == '__main__':
-    # Set up logging
-    format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logger = logging.getLogger('http-ftp-proxy-microservice')
+    PORT = int(os.getenv("PORT", 5000))
+    logger = logging.init_logger('azure-storage-service', os.getenv('LOGLEVEL',"INFO"))
 
-    # Log to stdout
-    stdout_handler = logging.StreamHandler()
-    stdout_handler.setFormatter(logging.Formatter(format_string))
-    logger.addHandler(stdout_handler)
-
-    loglevel = os.environ.get("LOGLEVEL", "INFO")
-    if "INFO" == loglevel.upper():
-        logger.setLevel(logging.INFO)
-    elif "DEBUG" == loglevel.upper():
-        logger.setLevel(logging.DEBUG)
-    elif "WARN" == loglevel.upper():
-        logger.setLevel(logging.WARN)
-    elif "ERROR" == loglevel.upper():
-        logger.setLevel(logging.ERROR)
+    if os.getenv('WEBFRAMEWORK', '').lower() == 'flask':
+        app.run(debug=True, host='0.0.0.0', port=PORT)
     else:
-        logger.setlevel(logging.INFO)
-        logger.info("Define an unsupported loglevel. Using the default level: INFO.")
+        import cherrypy
 
-    app.run(threaded=True, debug=True, host='0.0.0.0')
+        app = logging.add_access_logger(app, logger)
+        cherrypy.tree.graft(app, '/')
+
+        # Set the configuration of the web server to production mode
+        cherrypy.config.update({
+            'environment': 'production',
+            'engine.autoreload_on': False,
+            'log.screen': True,
+            'server.socket_port': PORT,
+            'server.socket_host': '0.0.0.0'
+        })
+
+        # Start the CherryPy WSGI web server
+        cherrypy.engine.start()
+        cherrypy.engine.block()
