@@ -1,2 +1,5 @@
-Flask==0.11
-azure
+requests==2.20.0
+Flask==1.0.2
+CherryPy==18.2.0
+paste==3.0.8
+azure==4.0.0
