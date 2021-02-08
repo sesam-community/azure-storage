@@ -1,7 +1,7 @@
 from flask import Flask, request, Response, abort, send_file
 from functools import wraps
 from azure.storage.file import FileService, SharePermissions
-from azure.storage.blob import BlockBlobService, BlobPermissions
+from azure.storage.blob import BlockBlobService, AppendBlobService, BlobPermissions
 import logger as logging
 import os
 import io
@@ -128,10 +128,37 @@ def post_blob(container_name, blob_name):
         account_name, account_key = get_auth(request.authorization)
         file_service = BlockBlobService(account_name = account_name, account_key = account_key)
         start_timedelta, expiry_timedelta = get_sas_params(request.args)
-        if request.headers.get('Transfer-Encoding') == 'chunked':
-            file_service.create_file_from_stream(container_name, directory_name, file_name, request.stream, count=4096)
-        else:
-            file_service.create_blob_from_bytes(container_name=container_name, blob_name=blob_name, blob=request.get_data())
+
+        file_service.create_blob_from_bytes(container_name=container_name, blob_name=blob_name, blob=request.get_data())
+        sas_token = file_service.generate_blob_shared_access_signature(container_name=container_name,
+            blob_name=blob_name,
+            permission=BlobPermissions(read=True),
+            expiry=datetime.now() + expiry_timedelta,
+            start=start_timedelta,
+            id=None,
+            ip=None,
+            protocol='https',
+            cache_control=request.headers.get('Cache-Control'),
+            content_disposition=request.headers.get('Content-Disposition: attachment;'),
+            content_encoding=request.headers.get('Content-Encoding'),
+            content_language=request.headers.get('Content-Language'),
+            content_type=request.headers.get('Content-Type'))
+        url = file_service.make_blob_url(container_name, blob_name, protocol='https', sas_token=sas_token)
+
+        return Response(response=url+"", status=200, content_type='text/plain')
+    except Exception as e:
+        logger.exception(e)
+        return abort(500, e)
+    
+@app.route('/appendblob/<container_name>/<blob_name>', methods=['POST'])
+@requires_auth
+def post_appendblob(container_name, blob_name):
+    try:
+        account_name, account_key = get_auth(request.authorization)
+        file_service = AppendBlobService(account_name = account_name, account_key = account_key)
+        start_timedelta, expiry_timedelta = get_sas_params(request.args)
+
+        file_service.create_blob_from_bytes(container_name=container_name, blob_name=blob_name, blob=request.get_data())
         sas_token = file_service.generate_blob_shared_access_signature(container_name=container_name,
             blob_name=blob_name,
             permission=BlobPermissions(read=True),
